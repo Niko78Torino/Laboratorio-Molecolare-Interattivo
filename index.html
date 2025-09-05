@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratorio Molecolare Interattivo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MODIFICA: Caricamento delle librerie Three.js e OrbitControls globalmente -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            background-color: #111827; /* bg-gray-900 */
+        }
+        #container canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .control-panel {
+            scrollbar-width: thin;
+            scrollbar-color: #4B5563 #1F2937;
+        }
+        .control-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+        .control-panel::-webkit-scrollbar-track {
+            background: #1F2937;
+        }
+        .control-panel::-webkit-scrollbar-thumb {
+            background-color: #4B5563;
+            border-radius: 10px;
+            border: 2px solid #1F2937;
+        }
+        #notification {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="text-white">
+
+    <div id="loader" class="absolute inset-0 bg-gray-900 bg-opacity-80 flex flex-col items-center justify-center z-50">
+        <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-cyan-400"></div>
+        <p class="mt-4 text-lg">Caricamento del laboratorio...</p>
+    </div>
+
+    <div class="flex flex-col md:flex-row h-screen">
+        <!-- Pannello di Controllo Sinistro -->
+        <div class="w-full md:w-80 bg-gray-800 p-4 shadow-lg flex-shrink-0 flex flex-col space-y-6 control-panel overflow-y-auto">
+            <div>
+                <h1 class="text-2xl font-bold text-cyan-400">Laboratorio 3D</h1>
+                <p class="text-sm text-gray-400">Costruttore di Molecole</p>
+            </div>
+            
+            <!-- SEZIONE: Descrizione del Laboratorio -->
+            <div class="bg-gray-900 p-4 rounded-lg">
+                <h2 class="text-lg font-semibold mb-2 text-cyan-300">Come Funziona</h2>
+                <p class="text-sm text-gray-400">
+                    Questo laboratorio virtuale ti permette di esplorare le molecole in uno spazio 3D interattivo. 
+                    Puoi selezionare una molecola di base, ruotarla per osservarla da ogni angolazione e costruire nuove strutture complesse aggiungendo atomi. 
+                    La formula chimica si aggiornerà in tempo reale, mostrandoti il risultato dei tuoi esperimenti.
+                </p>
+            </div>
+
+            <!-- Sezione 1: Scelta della Molecola Iniziale -->
+            <div class="bg-gray-900 p-4 rounded-lg">
+                <h2 class="text-lg font-semibold mb-3 border-b border-gray-700 pb-2">1. Seleziona la Molecola</h2>
+                <select id="molecule-selector" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <option value="methane">Metano (CH₄)</option>
+                    <option value="water">Acqua (H₂O)</option>
+                    <option value="ammonia">Ammoniaca (NH₃)</option>
+                    <option value="ethane">Etano (C₂H₆)</option>
+                    <option value="benzene">Benzene (C₆H₆)</option>
+                </select>
+            </div>
+
+            <!-- Sezione 2: Aggiungi Componenti -->
+            <div class="bg-gray-900 p-4 rounded-lg">
+                <h2 class="text-lg font-semibold mb-3 border-b border-gray-700 pb-2">2. Aggiungi Atomi</h2>
+                <p class="text-xs text-gray-500 mb-3">Seleziona un atomo nella scena 3D, poi clicca un pulsante per aggiungerne uno nuovo.</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <button data-atom="C" class="add-atom-btn bg-gray-600 hover:bg-gray-500 font-bold py-2 px-4 rounded-md transition-colors duration-200">Carbonio (C)</button>
+                    <button data-atom="H" class="add-atom-btn bg-blue-200 text-black hover:bg-blue-100 font-bold py-2 px-4 rounded-md transition-colors duration-200">Idrogeno (H)</button>
+                    <button data-atom="O" class="add-atom-btn bg-red-500 hover:bg-red-400 font-bold py-2 px-4 rounded-md transition-colors duration-200">Ossigeno (O)</button>
+                    <button data-atom="N" class="add-atom-btn bg-blue-500 hover:bg-blue-400 font-bold py-2 px-4 rounded-md transition-colors duration-200">Azoto (N)</button>
+                </div>
+            </div>
+
+            <!-- Sezione 3: Controlli Visuale -->
+             <div class="bg-gray-900 p-4 rounded-lg">
+                <h2 class="text-lg font-semibold mb-3 border-b border-gray-700 pb-2">3. Controlli</h2>
+                <ul class="text-sm text-gray-400 list-disc list-inside space-y-1">
+                    <li><span class="font-bold">Ruota:</span> Tieni premuto il tasto sinistro del mouse e trascina.</li>
+                    <li><span class="font-bold">Zoom:</span> Usa la rotellina del mouse.</li>
+                    <li><span class="font-bold">Sposta:</span> Tieni premuto il tasto destro del mouse e trascina.</li>
+                </ul>
+                <button id="reset-view-btn" class="mt-4 w-full bg-cyan-600 hover:bg-cyan-500 font-bold py-2 px-4 rounded-md transition-colors duration-200">Resetta Visuale</button>
+            </div>
+
+            <!-- SEZIONE: Footer -->
+            <div class="mt-auto pt-4 border-t border-gray-700 text-center text-xs text-gray-500">
+                <p>&copy; 2025 Nicola Nicolaci. Uso didattico.</p>
+                <div class="mt-2">
+                    <a href="javascript:void(0);" id="disclaimer-link" class="hover:text-cyan-400 transition-colors">Disclaimer</a>
+                    <span class="mx-1">|</span>
+                    <a href="javascript:void(0);" id="privacy-link" class="hover:text-cyan-400 transition-colors">Privacy Policy</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scena 3D e Pannello Informazioni -->
+        <div class="flex-grow relative">
+            <div id="container" class="w-full h-full"></div>
+            <!-- Pannello Informazioni -->
+            <div class="absolute bottom-4 left-4 bg-gray-900 bg-opacity-80 p-4 rounded-lg shadow-lg max-w-sm">
+                <h3 class="text-lg font-bold text-cyan-400">Info Molecola</h3>
+                <p class="font-mono text-gray-300"><span class="font-semibold">Nome:</span> <span id="molecule-name">N/A</span></p>
+                <p class="font-mono text-gray-300"><span class="font-semibold">Formula:</span> <span id="molecule-formula">N/A</span></p>
+            </div>
+             <!-- Indicatore di Selezione -->
+            <div id="selection-indicator" class="absolute top-4 left-4 bg-yellow-300 text-black p-2 rounded-lg shadow-lg text-sm font-semibold hidden">
+                Atomo Selezionato: <span id="selected-atom-element"></span>
+            </div>
+            <!-- Notifica -->
+            <div id="notification" class="absolute top-4 right-4 bg-red-500 text-white p-3 rounded-lg shadow-lg text-sm font-semibold hidden opacity-0 transform translate-y-[-20px]">
+                <!-- Message will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- NUOVA SEZIONE: Finestre Modali -->
+    <!-- Modale Disclaimer -->
+    <div id="disclaimer-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-2xl w-full text-white">
+            <h2 class="text-2xl font-bold mb-4 text-cyan-400">Disclaimer</h2>
+            <p class="text-gray-300 mb-6 text-justify">
+                Questa applicazione è fornita "così com'è" per scopi puramente didattici e dimostrativi. L'autore, Nicola Nicolaci, non si assume alcuna responsabilità per l'accuratezza, completezza o idoneità delle informazioni e delle simulazioni presentate. Le rappresentazioni molecolari sono semplificate e non devono essere considerate scientificamente accurate per ricerche o applicazioni professionali. L'utente si assume la piena responsabilità per qualsiasi uso fatto di questo strumento.
+            </p>
+            <button id="close-disclaimer" class="bg-cyan-600 hover:bg-cyan-500 font-bold py-2 px-4 rounded-md transition-colors">Chiudi</button>
+        </div>
+    </div>
+
+    <!-- Modale Privacy Policy -->
+    <div id="privacy-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-2xl w-full text-white">
+            <h2 class="text-2xl font-bold mb-4 text-cyan-400">Privacy Policy</h2>
+            <p class="text-gray-300 mb-6 text-justify">
+                Questo laboratorio molecolare non raccoglie, memorizza o trasmette alcun dato personale o di utilizzo. Tutte le operazioni e le molecole create rimangono interamente all'interno della sessione del browser dell'utente e non vengono salvate in alcun server. La tua privacy è completamente garantita in quanto non vengono utilizzati cookie o tracker di alcun tipo.
+            </p>
+            <button id="close-privacy" class="bg-cyan-600 hover:bg-cyan-500 font-bold py-2 px-4 rounded-md transition-colors">Chiudi</button>
+        </div>
+    </div>
+
+    <!-- MODIFICA: Script non più di tipo "module" -->
+    <script>
+        // Le importazioni non sono più necessarie perché THREE è disponibile globalmente.
+
+        // Variabili globali
+        let scene, camera, renderer, controls;
+        let raycaster, mouse;
+        let atoms = [];
+        let bonds = [];
+        let selectedAtom = null;
+        let originalCameraPosition = new THREE.Vector3(0, 0, 15);
+
+        const ATOM_PROPERTIES = {
+            'H': { color: 0xffffff, radius: 0.35 },
+            'C': { color: 0x4f4f4f, radius: 0.7 },
+            'N': { color: 0x0000ff, radius: 0.65 },
+            'O': { color: 0xff0000, radius: 0.6 },
+        };
+
+        const BOND_LENGTH = 1.5;
+
+        const MOLECULES = {
+            methane: {
+                name: "Metano",
+                atoms: [
+                    { element: 'C', pos: [0, 0, 0] },
+                    { element: 'H', pos: [0.63, 0.63, 0.63] },
+                    { element: 'H', pos: [-0.63, -0.63, 0.63] },
+                    { element: 'H', pos: [-0.63, 0.63, -0.63] },
+                    { element: 'H', pos: [0.63, -0.63, -0.63] },
+                ],
+                bonds: [[0, 1], [0, 2], [0, 3], [0, 4]]
+            },
+            water: {
+                name: "Acqua",
+                atoms: [
+                    { element: 'O', pos: [0, 0.1, 0] },
+                    { element: 'H', pos: [0.76, -0.4, 0] },
+                    { element: 'H', pos: [-0.76, -0.4, 0] },
+                ],
+                bonds: [[0, 1], [0, 2]]
+            },
+            ammonia: {
+                name: "Ammoniaca",
+                atoms: [
+                    { element: 'N', pos: [0, 0.2, 0] },
+                    { element: 'H', pos: [0, -0.4, -0.87] },
+                    { element: 'H', pos: [0.87, -0.4, 0.43] },
+                    { element: 'H', pos: [-0.87, -0.4, 0.43] },
+                ],
+                bonds: [[0, 1], [0, 2], [0, 3]]
+            },
+            ethane: {
+                name: "Etano",
+                atoms: [
+                    { element: 'C', pos: [0, 0, -0.77] },
+                    { element: 'C', pos: [0, 0, 0.77] },
+                    { element: 'H', pos: [0.89, 0, -1.16] },
+                    { element: 'H', pos: [-0.45, 0.77, -1.16] },
+                    { element: 'H', pos: [-0.45, -0.77, -1.16] },
+                    { element: 'H', pos: [-0.89, 0, 1.16] },
+                    { element: 'H', pos: [0.45, 0.77, 1.16] },
+                    { element: 'H', pos: [0.45, -0.77, 1.16] },
+                ],
+                bonds: [[0, 1], [0, 2], [0, 3], [0, 4], [1, 5], [1, 6], [1, 7]]
+            },
+            benzene: {
+                name: "Benzene",
+                atoms: [
+                    { element: 'C', pos: [1.2, 0, 0] }, { element: 'C', pos: [0.6, 1.04, 0] },
+                    { element: 'C', pos: [-0.6, 1.04, 0] }, { element: 'C', pos: [-1.2, 0, 0] },
+                    { element: 'C', pos: [-0.6, -1.04, 0] }, { element: 'C', pos: [0.6, -1.04, 0] },
+                    { element: 'H', pos: [2.2, 0, 0] }, { element: 'H', pos: [1.1, 1.9, 0] },
+                    { element: 'H', pos: [-1.1, 1.9, 0] }, { element: 'H', pos: [-2.2, 0, 0] },
+                    { element: 'H', pos: [-1.1, -1.9, 0] }, { element: 'H', pos: [1.1, -1.9, 0] }
+                ],
+                bonds: [
+                    [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0],
+                    [0, 6], [1, 7], [2, 8], [3, 9], [4, 10], [5, 11]
+                ]
+            }
+        };
+
+        function init() {
+            const container = document.getElementById('container');
+            
+            // Scena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111827);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.copy(originalCameraPosition);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            // Luci
+            scene.add(new THREE.AmbientLight(0xcccccc, 0.8));
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+
+            // Controlli
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Raycaster per la selezione
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Eventi
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('click', onAtomClick);
+            document.getElementById('molecule-selector').addEventListener('change', (e) => loadMolecule(e.target.value));
+            document.querySelectorAll('.add-atom-btn').forEach(btn => {
+                btn.addEventListener('click', () => addAtom(btn.dataset.atom));
+            });
+            document.getElementById('reset-view-btn').addEventListener('click', resetView);
+            
+            // NUOVA LOGICA: Gestione Modali
+            const disclaimerModal = document.getElementById('disclaimer-modal');
+            const privacyModal = document.getElementById('privacy-modal');
+
+            document.getElementById('disclaimer-link').addEventListener('click', () => disclaimerModal.classList.remove('hidden'));
+            document.getElementById('privacy-link').addEventListener('click', () => privacyModal.classList.remove('hidden'));
+
+            document.getElementById('close-disclaimer').addEventListener('click', () => disclaimerModal.classList.add('hidden'));
+            document.getElementById('close-privacy').addEventListener('click', () => privacyModal.classList.add('hidden'));
+
+            // Chiudi modale cliccando fuori dal contenuto
+            function closeModalOnClickOutside(modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.add('hidden');
+                    }
+                });
+            }
+            closeModalOnClickOutside(disclaimerModal);
+            closeModalOnClickOutside(privacyModal);
+
+            // Caricamento iniziale
+            loadMolecule('methane');
+            animate();
+
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function clearScene() {
+            atoms.forEach(atom => scene.remove(atom.mesh));
+            bonds.forEach(bond => scene.remove(bond));
+            atoms = [];
+            bonds = [];
+            deselectAtom();
+        }
+
+        function createAtomMesh(element, position) {
+            const props = ATOM_PROPERTIES[element];
+            const geometry = new THREE.SphereGeometry(props.radius, 32, 32);
+            const material = new THREE.MeshLambertMaterial({ color: props.color });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(position);
+            mesh.userData = { element: element };
+            scene.add(mesh);
+            return mesh;
+        }
+
+        function createBondMesh(pos1, pos2) {
+            const direction = new THREE.Vector3().subVectors(pos2, pos1);
+            const orientation = new THREE.Matrix4();
+            orientation.lookAt(pos1, pos2, new THREE.Object3D().up);
+            orientation.multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
+            
+            const geometry = new THREE.CylinderGeometry(0.1, 0.1, direction.length(), 8, 1);
+            const material = new THREE.MeshLambertMaterial({ color: 0x808080 });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.applyMatrix4(orientation);
+            mesh.position.copy(pos1.clone().add(direction.multiplyScalar(0.5)));
+            scene.add(mesh);
+            return mesh;
+        }
+
+        function loadMolecule(name) {
+            clearScene();
+            const data = MOLECULES[name];
+            
+            data.atoms.forEach(atomData => {
+                const pos = new THREE.Vector3(...atomData.pos);
+                const mesh = createAtomMesh(atomData.element, pos);
+                atoms.push({ element: atomData.element, pos: pos, mesh: mesh, bonds: [] });
+            });
+
+            data.bonds.forEach(bondIndices => {
+                const atom1 = atoms[bondIndices[0]];
+                const atom2 = atoms[bondIndices[1]];
+                const bondMesh = createBondMesh(atom1.pos, atom2.pos);
+                bonds.push(bondMesh);
+                atom1.bonds.push(atom2);
+                atom2.bonds.push(atom1);
+            });
+            
+            updateInfoPanel();
+            resetView();
+        }
+
+        function updateInfoPanel() {
+            const formula = {};
+            atoms.forEach(atom => {
+                formula[atom.element] = (formula[atom.element] || 0) + 1;
+            });
+            
+            const formulaString = Object.entries(formula)
+                .sort()
+                .map(([el, count]) => `${el}${count > 1 ? `<sub>${count}</sub>` : ''}`)
+                .join('');
+            
+            const selector = document.getElementById('molecule-selector');
+            const originalMolecule = MOLECULES[selector.value];
+            const isCustom = atoms.length > originalMolecule.atoms.length;
+
+            document.getElementById('molecule-name').textContent = isCustom ? 'Molecola Custom' : originalMolecule.name;
+            document.getElementById('molecule-formula').innerHTML = formulaString;
+        }
+
+        function onAtomClick(event) {
+            event.preventDefault();
+
+            const container = document.getElementById('container').getBoundingClientRect();
+            mouse.x = ((event.clientX - container.left) / container.width) * 2 - 1;
+            mouse.y = -((event.clientY - container.top) / container.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(atoms.map(a => a.mesh));
+
+            if (intersects.length > 0) {
+                const intersectedMesh = intersects[0].object;
+                const atom = atoms.find(a => a.mesh === intersectedMesh);
+                if (atom) {
+                    selectAtom(atom);
+                }
+            } else {
+                deselectAtom();
+            }
+        }
+
+        function selectAtom(atom) {
+            deselectAtom(); 
+            selectedAtom = atom;
+            selectedAtom.mesh.material.emissive.setHex(0x555500);
+            
+            const indicator = document.getElementById('selection-indicator');
+            document.getElementById('selected-atom-element').textContent = atom.element;
+            indicator.classList.remove('hidden');
+        }
+
+        function deselectAtom() {
+            if (selectedAtom) {
+                selectedAtom.mesh.material.emissive.setHex(0x000000);
+            }
+            selectedAtom = null;
+            document.getElementById('selection-indicator').classList.add('hidden');
+        }
+        
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.remove('hidden', 'opacity-0', 'translate-y-[-20px]');
+            
+            setTimeout(() => {
+                notification.classList.add('opacity-0', 'translate-y-[-20px]');
+                setTimeout(() => notification.classList.add('hidden'), 300);
+            }, 2500);
+        }
+
+        function addAtom(element) {
+            if (!selectedAtom) {
+                showNotification("Seleziona un atomo prima di aggiungerne uno nuovo.");
+                return;
+            }
+
+            // Calcola una posizione per il nuovo atomo per evitare sovrapposizioni
+            let directions = [
+                new THREE.Vector3(1, 1, 1), new THREE.Vector3(-1, -1, 1),
+                new THREE.Vector3(-1, 1, -1), new THREE.Vector3(1, -1, -1),
+                new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0)
+            ];
+
+            let bestDirection = null;
+            let maxMinDist = 0;
+            
+            for(const dir of directions) {
+                let testPos = selectedAtom.pos.clone().add(dir.normalize().multiplyScalar(BOND_LENGTH));
+                let currentMinDist = Infinity;
+                atoms.forEach(a => {
+                   currentMinDist = Math.min(currentMinDist, testPos.distanceTo(a.pos));
+                });
+
+                if (currentMinDist > maxMinDist) {
+                    maxMinDist = currentMinDist;
+                    bestDirection = dir;
+                }
+            }
+            
+            const newPos = selectedAtom.pos.clone().add((bestDirection || directions[0]).normalize().multiplyScalar(BOND_LENGTH));
+            
+            // Crea il nuovo atomo e il legame
+            const newMesh = createAtomMesh(element, newPos);
+            const newAtom = { element: element, pos: newPos, mesh: newMesh, bonds: [] };
+            atoms.push(newAtom);
+
+            const bondMesh = createBondMesh(selectedAtom.pos, newPos);
+            bonds.push(bondMesh);
+
+            selectedAtom.bonds.push(newAtom);
+            newAtom.bonds.push(selectedAtom);
+
+            updateInfoPanel();
+            deselectAtom();
+        }
+
+        function resetView() {
+            controls.reset();
+            camera.position.copy(originalCameraPosition);
+            camera.lookAt(new THREE.Vector3(0, 0, 0));
+        }
+
+        // Avvia l'applicazione
+        init();
+    </script>
+</body>
+</html>
+
