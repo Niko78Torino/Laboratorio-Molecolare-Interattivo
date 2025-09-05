@@ -1,4 +1,6 @@
 Laboratorio Molecolare Interattivo 3D
+
+
 Questo progetto è un'applicazione web interattiva che simula un laboratorio di chimica virtuale, permettendo agli utenti di visualizzare, costruire e manipolare molecole in uno spazio tridimensionale. È stato sviluppato con scopi didattici per offrire un'esperienza intuitiva e visiva della struttura molecolare.
 
 Funzionalità Principali
