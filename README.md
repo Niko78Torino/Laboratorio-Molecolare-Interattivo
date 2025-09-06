@@ -25,7 +25,7 @@ Pannello Informativo Dinamico: Un pannello aggiorna in tempo reale la formula ch
 Interfaccia Utente Moderna: L'interfaccia è pulita, reattiva e costruita con Tailwind CSS.
 
 Come Utilizzare il Laboratorio
-Aprire il File: Apri il file laboratorio_molecolare.html in un qualsiasi browser web moderno.
+Aprire il File: Apri il file https://laboratorio-molecolare-interattivo.netlify.app/ in un qualsiasi browser web moderno.
 
 Scegliere una Molecola: Usa il menu a tendina "Seleziona Molecola" nel pannello di sinistra per caricare una delle molecole preimpostate.
 
